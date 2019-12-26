@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<form action="/api/clip" method="post">
+    {% csrf_token %}
+    <input type="text" name="rtsp">
+    <button type="submit">clip</button>
+</form>
+
+</body>
+</html>
