@@ -5,9 +5,11 @@ import traceback
 import oss2
 from oss2.exceptions import NoSuchKey
 
+from utils import gen_uuid
+
 logger = logging.getLogger('MyOssClient')
 # logger.setLevel('DEBUG')
-oss2.set_file_logger('oss.log', 'oss2', logging.INFO)
+oss2.set_file_logger('log/oss.log', 'oss2', logging.INFO)
 
 
 # 详细通讯日志
@@ -47,10 +49,10 @@ class OssClient(object):
     #         return func(self, *args, **kwargs)
     #     return check_init
 
-    def put_object(self, key, data, headers=None, progress_callback=None):
+    def put_object(self, data, key='', headers=None, progress_callback=None):
         """
         上传一个文件对象
-        :param key: key
+        :param key: key, if None, gengrate a uuid.
         :param data: 待上传的内容。
         :type data: bytes，str或file-like object
         :param headers: 用户指定的HTTP头部。可以指定Content-Type、Content-MD5、x-oss-meta-开头的头部等
@@ -60,13 +62,16 @@ class OssClient(object):
 
         :return : Success: cdn url. Fail: None
         """
+
+        if not key:
+            key = gen_uuid()
         result = self._bucket.put_object(key, data, headers, progress_callback)
 
         if result.status == 200:
             logger.debug("Put Success. {}".format(key))
             return self._cdn + key
         else:
-            logger.error('put [{}] result code: {}'.format(key, result.status))
+            logger.error('Put [{}] result code: {}'.format(key, result.status))
 
     def put_object_from_file(self, key, filename, headers=None, progress_callback=None) -> bool:
         """
@@ -124,12 +129,13 @@ class OssClient(object):
 if __name__ == '__main__':
     from oss.config import oss_config
 
-    key = 'test.txt'
     my_utils = OssClient(oss_config['accessKeyId'], oss_config['accessKeySecret'], oss_config['bucketName'],
                          oss_config['endpoint'],
                          cdn=oss_config['cdn'])
 
-    print("上传文件：", my_utils.put_object(key, 'Hello World'))
+    key = 'test.txt'
+    content = 'Hello World'
+    print("上传文件：", my_utils.put_object(content, key))
     print('是否存在；', my_utils.object_exists(key))
     print('读取文件内容: ', my_utils.get_object(key))
     print('删除OK ?：', my_utils.delete_object(key))

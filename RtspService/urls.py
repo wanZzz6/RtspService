@@ -20,5 +20,5 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home),
-    path('api/clip', views.clip, name='clip')
+    path('api/capture', views.capture_service, name='capture')
 ]

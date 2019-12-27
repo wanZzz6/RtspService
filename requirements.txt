@@ -1,3 +1,4 @@
+django
 numpy
 cv2
 PIL

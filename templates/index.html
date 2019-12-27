@@ -5,9 +5,11 @@
     <title>Title</title>
 </head>
 <body>
-<form action="/api/clip" method="post">
+<form action="/api/capture" method="get">
     {% csrf_token %}
-    <input type="text" name="rtsp">
+    key: <input type="text" name="key">
+    &nbsp;
+    rtsp: <input type="text" name="rtsp">
     <button type="submit">clip</button>
 </form>
 

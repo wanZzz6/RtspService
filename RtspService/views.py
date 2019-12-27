@@ -3,13 +3,18 @@ from django.http import HttpResponse
 import json
 import logging
 
+from rtsp.capture_handler import CvCapture
 from oss.api import OssClient
 from oss.config import oss_config
 
-oss_client = OssClient(oss_config['access_key_id'], oss_config['access_key_secret'],
-                       oss_config['bucket_name'], oss_config['endpoint'])
+# OSS客户端
+oss_client = OssClient(oss_config['accessKeyId'], oss_config['accessKeySecret'],
+                       oss_config['bucketName'], oss_config['endpoint'], cdn=oss_config['cdn'])
+# 截图方法
+capture_handler = CvCapture()
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger('RtspService.views')
+logger.setLevel('DEBUG')
 
 
 # Create your views here.
@@ -17,12 +22,17 @@ def home(request):
     return render(request, 'index.html')
 
 
-def clip(request):
-    if request.method == 'POST':
-        rtsp = request.POST.get('rtsp')
-        key = request.POST.get('key')
-        logger.debug(rtsp)
-        oss_client.put_object(key, )
-    return HttpResponse(json.dumps({'result': 'OK'}), content_type='application/json')
-
-
+def capture_service(request):
+    result = {}
+    try:
+        rtsp = request.GET['rtsp']
+        key = request.GET['key']
+        binary_data = capture_handler.capture_from_rtsp(rtsp)
+        access_url = oss_client.put_object(binary_data, key)
+        result['status'] = 'ok'
+        result['cdn'] = access_url
+    except Exception as e:
+        print(e)
+        result['status'] = 'no'
+        result['msg'] = 'see log'
+    return HttpResponse(json.dumps(result), content_type='application/json')

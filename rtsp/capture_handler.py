@@ -6,12 +6,10 @@ import cv2
 
 from utils import array2bytes
 
-ffmpeg = None
-
-logger = logging.getLogger('RtspService.clip_handler')
+logger = logging.getLogger('RtspService.capture_handler')
 
 
-class CvClip(object):
+class CvCapture(object):
     def __init__(self):
         # todo 缓存rtsp capture 对象
         self.capture_map = dict()
@@ -19,7 +17,7 @@ class CvClip(object):
 
     # todo 检查cap 队列
     # todo 释放 cap
-    def clip_from_rtsp(self, rtsp_url):
+    def capture_from_rtsp(self, rtsp_url):
         """
         从 rtsp 地址中截图
         :return: success: binary picture; fail: None
@@ -30,12 +28,12 @@ class CvClip(object):
                 cap = cv2.VideoCapture(rtsp_url)  # 子码流平均耗时1~2s，主码流 > 3s, 有可能连接超时
                 self.capture_map[rtsp_url] = cap
                 logger.debug('Create VideoCapture Success. - {}'.format(rtsp_url))
-            return self.clip_from_capture(cap)
+            return self.capture_from_capture(cap)
         except Exception as e:
-            logger.error('Clip Frame Fail!\n {}'.format(traceback.format_exc()))
+            logger.error('Capture Frame Fail!\n {}'.format(traceback.format_exc()))
 
     @staticmethod
-    def clip_from_capture(cap):
+    def capture_from_capture(cap):
         """
         利用已有 capture 对象截图
         :param cap:
@@ -51,16 +49,16 @@ class CvClip(object):
                 img_bytes = array2bytes(img)
                 return img_bytes
         except AttributeError:
-            logger.error('clip_from_capture() Need a `cv2.VideoCapture` object\n{}'.format(traceback.format_exc()))
+            logger.error('capture_from_capture() Need a `cv2.VideoCapture` object\n{}'.format(traceback.format_exc()))
         except Exception:
-            logger.error('clip_from_capture Fail!\n{}'.format(traceback.format_exc()))
+            logger.error('capture_from_capture Fail!\n{}'.format(traceback.format_exc()))
 
 
-class FfmpegClip(object):
+class FfmpegCapture(object):
     def __init__(self):
         self.ffmpeg = __import__('ffmpeg')
 
-    def clip_from_rtsp(self, rtsp_url):
+    def capture_from_rtsp(self, rtsp_url):
         """
         利用 ffmpeg 从 rtsp 地址中截图
         :param rtsp_url:
@@ -78,9 +76,9 @@ class FfmpegClip(object):
 
 if __name__ == '__main__':
     url = 'rtmp://58.200.131.2:1935/livetv/hunantv'
-    clip = CvClip()
+    clip = CvCapture()
     with open('test1.jpg', 'wb') as f:
-        f.write(clip.clip_from_rtsp(url))
+        f.write(clip.capture_from_rtsp(url))
     print('=' * 50)
     with open('test2.jpg', 'wb') as f:
-        f.write(FfmpegClip().clip_from_rtsp(url))
+        f.write(FfmpegCapture().capture_from_rtsp(url))
