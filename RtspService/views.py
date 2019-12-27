@@ -3,10 +3,10 @@ from django.http import HttpResponse
 import json
 import logging
 
-from oss.api import ossClient
+from oss.api import OssClient
 from oss.config import oss_config
 
-oss_client = ossClient(oss_config['access_key_id'], oss_config['access_key_secret'],
+oss_client = OssClient(oss_config['access_key_id'], oss_config['access_key_secret'],
                        oss_config['bucket_name'], oss_config['endpoint'])
 
 logger = logging.getLogger(__file__)
@@ -24,3 +24,5 @@ def clip(request):
         logger.debug(rtsp)
         oss_client.put_object(key, )
     return HttpResponse(json.dumps({'result': 'OK'}), content_type='application/json')
+
+

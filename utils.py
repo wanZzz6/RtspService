@@ -25,6 +25,3 @@ def array2bytes(ndarray_frame, extension='.jpg'):
 def gen_uuid():
     uuid_4 = uuid.uuid4()
     return uuid_4.hex
-
-
-print(__file__)
