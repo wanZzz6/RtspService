@@ -4,9 +4,9 @@ import traceback
 
 import cv2
 
-from utils import array2bytes
+from utils import array2bytes, calc_run_time
 
-logger = logging.getLogger('RtspService.capture_handler')
+logger = logging.getLogger('captureHandler')
 
 
 class CvCapture(object):
@@ -17,6 +17,7 @@ class CvCapture(object):
 
     # todo 检查cap 队列
     # todo 释放 cap
+    @calc_run_time
     def capture_from_rtsp(self, rtsp_url):
         """
         从 rtsp 地址中截图
@@ -58,6 +59,7 @@ class FfmpegCapture(object):
     def __init__(self):
         self.ffmpeg = __import__('ffmpeg')
 
+    @calc_run_time
     def capture_from_rtsp(self, rtsp_url):
         """
         利用 ffmpeg 从 rtsp 地址中截图

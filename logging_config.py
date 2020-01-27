@@ -7,9 +7,13 @@ import os
 
 
 def genLogDict(logDir, logFile):
-    '''
-    配置日志格式的字典
-    '''
+    """
+    生成日志参数字典
+    :param logDir: 日志文件夹
+    :param logFile: 日志文件名
+    :return: 参数字典
+    """
+
     logDict = {
         "version": 1,
         "disable_existing_loggers": False,
