@@ -11,12 +11,19 @@ logger = logging.getLogger('captureHandler')
 
 class CvCapture(object):
     def __init__(self):
-        # todo 缓存rtsp capture 对象
-        self.capture_map = dict()
+        self._capture_map = dict()
         self.oss_client = None
 
+    def __del__(self):
+        for cap in self._capture_map.values():
+            try:
+                cap.release()  # 释放摄像头
+            except Exception:
+                logger.error("释放资源失败 %s", traceback.format_exc())
+        else:
+            logger.debug("释放资源成功")
+
     # todo 检查cap 队列
-    # todo 释放 cap
     @calc_run_time
     def capture_from_rtsp(self, rtsp_url):
         """
@@ -24,10 +31,10 @@ class CvCapture(object):
         :return: success: binary picture; fail: None
         """
         try:
-            cap = self.capture_map.get(rtsp_url, None)
+            cap = self._capture_map.get(rtsp_url, None)
             if cap is None:
                 cap = cv2.VideoCapture(rtsp_url)  # 子码流平均耗时1~2s，主码流 > 3s, 有可能连接超时
-                self.capture_map[rtsp_url] = cap
+                self._capture_map[rtsp_url] = cap
                 logger.debug('Create VideoCapture Success. - {}'.format(rtsp_url))
             return self.capture_from_capture(cap)
         except Exception as e:

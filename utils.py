@@ -3,23 +3,24 @@ import time
 import uuid
 
 import cv2
-import numpy as np
-from PIL import Image
+
 from logging_config import initLogConf
 
 initLogConf()
 logger = logging.getLogger('RtspService.utils')
 
 
-def array2bytes(ndarray_frame, extension='.jpg'):
+def array2bytes(ndarray_frame, extension='.jpg') -> bytes:
     """
-    np 数组图片转为二进制 bytes
-    :return:
+    三维 numpy 数组图片转为二进制 bytes
+    :param ndarray_frame: 三维 numpy 数组
+    :param extension: 保存图片扩展名
+    :return: 图像bytes流
     """
+
     ret, buf = cv2.imencode(extension, ndarray_frame)
     if ret:
-        img_bin = Image.fromarray(np.uint8(buf)).tobytes()
-        return img_bin
+        return buf.tobytes()
     else:
         logger.error("Convert array to bytes fail.")
         return b''
