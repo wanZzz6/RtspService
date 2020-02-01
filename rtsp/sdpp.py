@@ -78,9 +78,8 @@ class SdpParser(object):
         self.session = None
         # 多个媒体描述
         self.media = []
-        self.session = None  # type SdpSessionDesc()
+        self.session = None  # type SdpSessionDesc
         self._last_desc = None
-        # self._session_end = False
         if data is not None:
             self.parse(data)
 
@@ -89,7 +88,6 @@ class SdpParser(object):
         self.media = []
         self.session = SdpSessionDesc()
         self._last_desc = self.session
-        # self._session_end = False
 
         for line in data.splitlines():
             try:
@@ -129,7 +127,6 @@ class SdpParser(object):
         elif type_ == 'm':
             self._last_desc = SdpMediaDesc(value)
             self.media.append(self._last_desc)
-            # self._session_end = True
 
         elif type_ == 'a':
             k, sep, v = value.partition(':')
@@ -146,71 +143,8 @@ class SdpParser(object):
                    'media': [m.__dict__ for m in self.media]}
             f.write(json.dumps(obj))
 
-
-class SdpplinMediaDesc(SdpMediaDesc):
-    """ Extends the SDPMediaDesc by providing dictionary-style access to
-    the sdpplin variables.
-    e.g. instead of media_desc.a[7] returning "MaxBitRate:integer;64083"
-         media_desc["MaxBitRate"] returns an integer 64083
-    """
-
-    def __iter__(self):
-        for key in self.attributes:
-            yield key
-
-    def items(self):
-        return self.attribute.items()
-
-    def __getitem__(self, name):
-        return self.attributes[name]
-
-    def __init__(self, media_desc):
-        self.a = media_desc.a
-        self.b = media_desc.b
-
-        self.attributes = {}
-        self.duration = None
-
-        for item in media_desc.a:
-            name, value = _parse_sdpplin_line(item)
-            if name == 'control':
-                self.attributes[value.split('=')[0]] = int(value.split('=')[1])
-            if name == 'length':
-                self.duration = int(float(value.split('=')[1]) * 1000)
-            self.attributes[name] = value
-
-
-class Sdpplin(SdpParser):
-    """ Extends the SDPParser by providing dictionary-style access to
-    the sdpplin variables.
-    e.g. instead of sdp.a[1] returning "StreamCount:integer;2"
-         sdp["StreamCount"] returns 2
-    """
-
-    def __init__(self, data):
-        self.attributes = {}
-        self.streams = []
-
-        sdp = SdpParser(data)
-
-        # Adds attributes to self
-        for item in sdp.a:
-            name, value = _parse_sdpplin_line(item)
-            if name in ['Title', 'Author', 'Copyright']:
-                value = value.strip(chr(0))
-            self.attributes[name] = value
-
-        # Adds SdpplinMediaDesc to streams[] for each SDPMediaDesc
-        for media_desc in sdp.media_descriptions:
-            sdpplin_media_desc = SdpplinMediaDesc(media_desc)
-            self.streams.append(sdpplin_media_desc)
-
-    def __iter__(self):
-        for key in self.attributes:
-            yield key
-
-    def items(self):
-        return [(key, self.attributes[key]) for key in self.attributes]
-
-    def __getitem__(self, name):
-        return self.attributes[name]
+    def loadJson(self, filename):
+        with open(filename, encoding='utf-8') as f:
+            obj = json.loads(f.read())
+            self.session = obj['session']
+            self.media = obj['media']
