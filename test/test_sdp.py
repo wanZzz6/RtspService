@@ -26,3 +26,5 @@ print(p.session.session_desc)
 print(p.media[0])
 p.parse(a)
 p.save_as_json('aa.json')
+
+p.loadJson('aa.json')
