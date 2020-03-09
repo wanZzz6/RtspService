@@ -2,9 +2,9 @@ from hashlib import md5
 import base64
 
 
-def digest(username, realm, password, method, uri, nonce, qop=None, **kwargs) -> str:
+def digest(*, username, realm, password, method, uri, nonce, qop: str = None, **kwargs) -> str:
     """
-    HTTP 摘要认证(MD5)
+    HTTP 摘要认证(MD5) ，传入变量必须key=value的形式
     :param username: 用户名
     :param realm: 认证域
     :param password: 密码
@@ -16,6 +16,8 @@ def digest(username, realm, password, method, uri, nonce, qop=None, **kwargs) ->
     :return: response: md5 最终计算结果
     """
 
+    # calculate  HA1 and HA2
+    qop = None if qop is None else qop.lower()
     HA1 = md5((username + ":" + realm + ":" + password).encode()).hexdigest()
     if qop is None or qop == 'auth':
         HA2 = md5((method + ":" + uri).encode()).hexdigest()
@@ -25,6 +27,7 @@ def digest(username, realm, password, method, uri, nonce, qop=None, **kwargs) ->
     else:
         raise TypeError('Unsupported auth type: %s' % qop)
 
+    # calculate response
     if qop == 'auth' or qop == 'auth-init':
         nc = kwargs.pop('nc')
         cnonce = kwargs.pop('cnonce')
