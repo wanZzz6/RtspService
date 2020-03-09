@@ -17,18 +17,20 @@ def digest(*, username, realm, password, method, uri, nonce, qop: str = None, **
     """
 
     # calculate  HA1 and HA2
-    qop = None if qop is None else qop.lower()
+    qop = '' if qop is None else qop.lower()
     HA1 = md5((username + ":" + realm + ":" + password).encode()).hexdigest()
-    if qop is None or qop == 'auth':
-        HA2 = md5((method + ":" + uri).encode()).hexdigest()
-    elif qop == 'auth-int':
+
+    if 'auth-int' in qop:
         entity_body = kwargs.pop("entity_body")
         HA2 = md5((method + ":" + uri + ":" + md5(entity_body.encode()).hexdigest()))
+
+    elif 'auth' in qop or qop == '':
+        HA2 = md5((method + ":" + uri).encode()).hexdigest()
     else:
         raise TypeError('Unsupported auth type: %s' % qop)
 
     # calculate response
-    if qop == 'auth' or qop == 'auth-init':
+    if 'auth' in qop:
         nc = kwargs.pop('nc')
         cnonce = kwargs.pop('cnonce')
         response = md5((HA1 + ":" + nonce + ':' + nc + ":" + cnonce + ":" + qop + ":" + HA2).encode()).hexdigest()
