@@ -1,4 +1,5 @@
 from hashlib import md5
+import base64
 
 
 def digest(username, realm, password, method, uri, nonce, qop=None, **kwargs) -> str:
@@ -43,15 +44,18 @@ def rn5_auth(username, realm, password, nonce, uuid):
     return md5(munged).hexdigest()
 
 
-def basic(username, password):
-    pass
+def basic(username, password=''):
+    auth_str = '%s:%s' % (username, password)
+    auth_str = base64.b64encode(auth_str)
+    return auth_str
 
 
-result = digest(username='admin', password='tsit2019',
-                realm='IP Camera(D4918)',
-                method="DESCRIBE",
-                uri="rtsp://192.168.201.14:554/h264/ch1/sub/av_stream",
-                nonce='325dbaf043b7cba36b17da397381f421',
-                )
+if __name__ == '__main__':
+    result = digest(username='admin', password='tsit2019',
+                    realm='IP Camera(D4918)',
+                    method="DESCRIBE",
+                    uri="rtsp://192.168.201.14:554/h264/ch1/sub/av_stream",
+                    nonce='325dbaf043b7cba36b17da397381f421',
+                    )
 
-print(result)
+    print(result)
