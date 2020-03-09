@@ -1,19 +1,32 @@
 from time import time
 
+# from random import randint
+
 HEADER_SIZE = 12
 
 
-class RtpPacket:
+class RtpPacket(object):
 
     def __init__(self):
-        self.payload = None
-        self.header = None
+        self.__payload = None
+        self.header = bytearray(HEADER_SIZE)
 
-    def encode(self, version, padding, extension, cc, seqnum, marker, pt, ssrc, payload):
+        # # Fixed Header
+        # self.__version = 2
+        # self.__padding = 0
+        # self.__extension = 0
+        # self.__csrc_count = 0
+        # self.__marker = 0
+        # self.__payloadType = 96
+        # self.__seqNum = randint(10000, 99999)  # 自增
+        # self.__timestamp = int(time())
+        # self.__ssrc = bytearray()
+
+    def encode(self, *, version, padding, extension, csrc_count, marker, pt, seqnum, ssrc, payload, timestamp=None):
         """Encode the RTP packet with header fields and payload."""
+        if timestamp is None:
+            timestamp = int(time())
 
-        timestamp = int(time())
-        # print("timestamp: " + str(timestamp))
         self.header = bytearray(HEADER_SIZE)
         # --------------
         # TO COMPLETE
@@ -32,29 +45,20 @@ class RtpPacket:
         # header[] =
 
         # header[0] = version + padding + extension + cc + seqnum + marker + pt + ssrc
-        self.header[0] = version << 6
-        self.header[0] = self.header[0] | padding << 5
-        self.header[0] = self.header[0] | extension << 4
-        self.header[0] = self.header[0] | cc
-        self.header[1] = marker << 7
-        self.header[1] = self.header[1] | pt
-
-        self.header[2] = (seqnum >> 8) & 0xFF
-        self.header[3] = seqnum & 0xFF
-        # todo 位运算
-        self.header[4] = (timestamp >> 24) & 0xFF
-        self.header[5] = (timestamp >> 16) & 0xFF
-        self.header[6] = (timestamp >> 8) & 0xFF
-        self.header[7] = timestamp & 0xFF
-
-        self.header[8] = (ssrc >> 24) & 0xFF
-        self.header[9] = (ssrc >> 16) & 0xFF
-        self.header[10] = (ssrc >> 8) & 0xFF
-        self.header[11] = ssrc & 0xFF
+        self.version = version
+        self.padding = padding
+        self.extension = extension
+        self.csrc_count = csrc_count
+        self.marker = marker
+        self.pt = pt
+        self.seqNum = seqnum
+        self.timestamp = timestamp
+        self.ssrc = ssrc
 
         # Get the payload
         # ...
         self.payload = payload
+        return self.header + self.payload
 
     def decode(self, byteStream):
         """Decode the RTP packet."""
@@ -63,30 +67,108 @@ class RtpPacket:
         self.header = bytearray(byteStream[:HEADER_SIZE])  # temporary solved
         self.payload = byteStream[HEADER_SIZE:]
 
+    @property
     def version(self):
         """Return RTP version."""
         return int(self.header[0] >> 6)
 
+    @version.setter
+    def version(self, ver):
+        self.header[0] = ver << 6
+
+    @property
+    def padding(self):
+        p = self.header[0] >> 5 & 0x01
+        return int(p)
+
+    @padding.setter
+    def padding(self, pad):
+        self.header[0] = self.header[0] | pad << 5
+
+    @property
+    def extension(self):
+        x = self.header[0] >> 4 & 0x01
+        return x
+
+    @extension.setter
+    def extension(self, value):
+        self.header[0] = self.header[0] | value << 4
+
+    @property
+    def csrc_count(self):
+        cc = self.header[0] & 0x0F
+        return int(cc)
+
+    @csrc_count.setter
+    def csrc_count(self, value):
+        self.header[0] = self.header[0] | value
+
+    @property
+    def marker(self):
+        m = self.header[1] >> 7
+        return int(m)
+
+    @marker.setter
+    def marker(self, value):
+        self.header[1] = self.header[1] | value << 7
+
+    @property
+    def pt(self):
+        """Return payload type."""
+        pt = self.header[1] & 0x7F
+        return int(pt)
+
+    @pt.setter
+    def pt(self, value):
+        self.header[1] = self.header[1] | value
+
     # todo 位运算
+    @property
     def seqNum(self):
         """Return sequence (frame) number."""
         seqNum = self.header[2] << 8 | self.header[3]  # header[2] shift left for 8 bits then does bit or with header[3]
         return int(seqNum)
 
+    @seqNum.setter
+    def seqNum(self, value):
+        self.header[2] = (value >> 8) & 0xFF
+        self.header[3] = value & 0xFF
+
     # todo 位运算
+    @property
     def timestamp(self):
         """Return timestamp."""
         timestamp = self.header[4] << 24 | self.header[5] << 16 | self.header[6] << 8 | self.header[7]
         return int(timestamp)
 
-    def payloadType(self):
-        """Return payload type."""
-        pt = self.header[1] & 0x7F
-        return int(pt)
+    @timestamp.setter
+    def timestamp(self, value):
+        # todo 位运算
+        self.header[4] = (value >> 24) & 0xFF
+        self.header[5] = (value >> 16) & 0xFF
+        self.header[6] = (value >> 8) & 0xFF
+        self.header[7] = value & 0xFF
 
-    def getPayload(self):
+    @property
+    def ssrc(self):
+        timestamp = self.header[8] << 24 | self.header[9] << 16 | self.header[10] << 8 | self.header[11]
+        return int(timestamp)
+
+    @ssrc.setter
+    def ssrc(self, value):
+        self.header[8] = (value >> 24) & 0xFF
+        self.header[9] = (value >> 16) & 0xFF
+        self.header[10] = (value >> 8) & 0xFF
+        self.header[11] = value & 0xFF
+
+    @property
+    def payload(self):
         """Return payload."""
-        return self.payload
+        return self.__payload
+
+    @payload.setter
+    def payload(self, value):
+        self.__payload = value
 
     def getPacket(self):
         """Return RTP packet."""
