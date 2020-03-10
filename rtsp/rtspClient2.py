@@ -159,7 +159,7 @@ class Client:
         self._auth_info['response'] = digest(**self._auth_info)
         result = []
         for k, v in self._auth_info.items():
-            if v is not None and k not in {'stale', 'password', 'auth_method'}:
+            if v is not None and k not in {'stale', 'password', 'auth_method', 'method'}:
                 result.append(k + '="' + v + '"')
         result = 'Authorization: ' + self._auth_info['auth_method'] + ' ' + ', '.join(result) + '\r\n'
 
@@ -279,15 +279,15 @@ class Client:
         self._auth_info['uri'] = self.stream_path
 
         ## example: SETUP rtsp://example.com/foo/bar/baz.rm RTSP/2.0
-        request = {
+        request = [
             "SETUP {} {}\r\n".format(self.stream_path, RTSP_VER),
             "CSeq: {}\r\n".format(self.rtsp_seq),
             # todo TCP
             "Transport: RTP/AVP/TCP;unicast;interleaved=0-1\r\n",
             # RTP/SAVPF,RTP/AVP;unicast;client_port=5000-5001,RTP/AVP/UDP;unicast;client_port=5000-5001\r\n"
-            "User-Agent: \"{}\"\r\n\r\n".format(self.server.username),
+            "User-Agent: {}\r\n\r\n".format(USER_AGENT),
             self._make_auth_str(),
-        }
+        ]
         request = ''.join(request)
         response = self.sendMessage(request.encode('UTF-8'))
 
@@ -345,5 +345,7 @@ if __name__ == '__main__':
     client.describe()
     client.options()
     client.describe()
+    response = client.setup()
+    print(response.headers.items())
     print(client.session_desc)
     printrec(client.stream_path)
