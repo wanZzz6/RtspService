@@ -76,7 +76,7 @@ class SdpSessionDesc(object):
 
 class SdpParser(object):
 
-    def __init__(self, data: str = None):
+    def __init__(self):
         """ Parses a full SDP data string.
         Alternatively, send lines to the parseLine method. """
         # 多个媒体描述
@@ -84,8 +84,8 @@ class SdpParser(object):
         # 一个会话描述
         self.session = None  # type SdpSessionDesc
         self._last_desc = None
-        if data is not None:
-            self.parse(data)
+        # if data is not None:
+        #     self.parse(data)
 
     def parse(self, data: str, verbose=True):
         """

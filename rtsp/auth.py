@@ -39,6 +39,8 @@ def digest(*, username, realm, password, method, uri, nonce, qop: str = None, **
     return response
 
 
+
+
 # http://lists.mplayerhq.hu/pipermail/mplayer-dev-eng/2008-March/056903.html
 def rn5_auth(username, realm, password, nonce, uuid):
     MUNGE_TEMPLATE = '%-.200s%-.200s%-.200sCopyright (C) 1995,1996,1997 RealNetworks, Inc.'
