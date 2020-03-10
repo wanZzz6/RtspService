@@ -19,14 +19,14 @@ Overview:
 """
 import re
 import socket
-from io import StringIO
 from enum import Enum
+from io import StringIO
 from urllib.parse import urlparse
 
-from rtspResponse import RTSPResponse
 from auth import digest
+from module import RTSPException
+from module import RTSPResponse
 from sdpp import SdpParser
-from rtspResponse import RTSPException
 
 ##########################################################
 #################   Protocol Constants   #################

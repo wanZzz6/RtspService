@@ -40,6 +40,12 @@ def parse_headers(fp, _class=HTTPMessage):
     return email.parser.Parser(_class=_class).parsestr(hstring)
 
 
+# todo fake sock makefile
+class RTSPRequest(object):
+    def __init__(self, string_io, debuglevel=0):
+        self.fp = string_io
+
+
 class RTSPResponse(io.BufferedIOBase):
 
     # See RFC 2616 sec 19.6 and RFC 1945 sec 6 for details.
@@ -49,7 +55,7 @@ class RTSPResponse(io.BufferedIOBase):
     # text following RFC 2047.  The basic status line parsing only
     # accepts iso-8859-1.
 
-    def __init__(self, string_io, debuglevel=0, method=None, url=None):
+    def __init__(self, string_io, debuglevel=0, method=None):
         # If the response includes a content-length header, we need to
         # make sure that the client doesn't read more than the
         # specified number of bytes.  If it does, it will block until
@@ -64,7 +70,7 @@ class RTSPResponse(io.BufferedIOBase):
         self.headers = self.msg = None
 
         # from the Status-Line of the response
-        self.version = _UNKNOWN  # HTTP-Version
+        self.version = _UNKNOWN  # RTSP-Version
         self.status = _UNKNOWN  # Status-Code
         self.reason = _UNKNOWN  # Reason-Phrase
 
@@ -76,7 +82,7 @@ class RTSPResponse(io.BufferedIOBase):
     def __repr__(self):
         return '<Response [%s]>' % self.status
 
-    def _read_status(self):
+    def _read_first_line(self):
         line = self.fp.readline(_MAXLINE + 1)
         if len(line) > _MAXLINE:
             raise LineTooLong("status line")
@@ -110,16 +116,17 @@ class RTSPResponse(io.BufferedIOBase):
         return version, status, reason
 
     def begin(self):
+        # todo xxx
         if self.headers is not None:
             # we've already started reading the response
             return
 
         # read until we get a non-100 response
         while True:
-            version, status, reason = self._read_status()
+            version, status, reason = self._read_first_line()
             if status != CONTINUE:
                 break
-                # todo
+                # todo xxx
             # skip the header from the 100 response
             while True:
                 skip = self.fp.readline(_MAXLINE + 1)
@@ -420,6 +427,80 @@ class RTSPResponse(io.BufferedIOBase):
 
         """
         return self.status
+
+
+# todo fake sock makefile
+class RTSPRequest(object):
+    def __init__(self, string_io, debuglevel=0):
+        self.fp = string_io
+        self.debuglevel = debuglevel
+
+        self.headers = self.msg = None
+        self.body = self.content = None
+        self.method = _UNKNOWN
+        self.version = _UNKNOWN  # RTSP-Version
+        self.url = _UNKNOWN
+
+    def __repr__(self):
+        return '<Resuest [%s]>' % self.url
+
+    def _read_first_line(self):
+        line = self.fp.readline(_MAXLINE + 1)
+        if len(line) > _MAXLINE:
+            raise LineTooLong("status line")
+        if self.debuglevel > 0:
+            print("reply:", repr(line))
+        if not line:
+            # Presumably, the server closed the connection before
+            # sending a valid response.
+            raise RemoteDisconnected("Remote end closed connection without"
+                                     " response")
+        try:
+            method, url, version = line.split(None, 2)
+        except ValueError:
+            try:
+                method, url = line.split(None, 1)
+                version = ""
+            except:
+                # empty version will cause next test to fail.
+                raise RTSPException('Invalid Request %s' % line)
+        if not version.startswith("RTSP/"):
+            self._close_conn()
+            raise BadStatusLine(line)
+
+        return method, version, url
+
+    def begin(self):
+        if self.headers is not None:
+            return
+
+        method, version, url = self._read_first_line()
+        self.method = method
+        self.url = url
+        if version.startswith("RTSP/2."):
+            self.version = 2
+        elif version.startswith("RTSP/1."):
+            self.version = 1
+        else:
+            raise UnknownProtocol(version)
+
+        self.headers = self.msg = parse_headers(self.fp)
+        if self.debuglevel > 0:
+            for hdr in self.headers:
+                print("header:", hdr + ":", self.headers.get(hdr))
+        self.body = self.content = self.read()
+
+    def read(self):
+        if self.fp is None:
+            return b""
+        s = self.fp.read()
+        self._close_conn()  # we read everything
+        return s
+
+    def _close_conn(self):
+        fp = self.fp
+        self.fp = None
+        fp.close()
 
 
 class RTSPException(Exception):
