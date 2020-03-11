@@ -34,6 +34,7 @@ class SdpMediaDesc:
         :param m: start line. m=xxxxxx
         """
         # 媒体类型描述
+        self.m = m
         self.type, self.port, self.protocol, self.format = m.strip().split(' ')
         # 只关注 a\b 属性
         self.attribute = {}
@@ -41,6 +42,18 @@ class SdpMediaDesc:
         self.bandwidth = None
         # 其他信息
         self.other_info = {}
+
+    def to_str(self):
+        result = ['m={}'.format(self.m),
+                  'b={}'.format(self.bandwidth),
+                  ]
+
+        for x, y in self.attribute.items():
+            result.append('a={}:{}'.format(x, y))
+        for x, y in self.other_info.items():
+            result.append('{}={}'.format(x, y))
+
+        return '\r\n'.join(result)
 
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, self.__dict__)
@@ -67,6 +80,32 @@ class SdpSessionDesc(object):
         self.stop_time = None
         # 其他信息
         self.other_info = {}
+
+    def to_str(self):
+        result = ['v={}'.format(self.version)]
+
+        d = self.__dict__
+        for k, v in d.items():
+            if v is not None:
+                if k in {'version', 'start_time', 'stop_time'}:
+                    continue
+                elif k == 'session_name':
+                    k = 's'
+                elif k == 'session_desc':
+                    k = 'i'
+                elif k == 'attribute':
+                    for x, y in d['attribute'].items():
+                        result.append('a={}:{}'.format(x, y))
+                    continue
+                elif k == 'other_info':
+                    for x, y in d['other_info'].items():
+                        result.append('{}={}'.format(x, y))
+                    continue
+                else:
+                    k = k[0]
+                result.append("{}={}".format(k, v))
+
+        return '\r\n'.join(result)
 
     def __str__(self):
         return "%s(%s)" % (self.__class__.__name__, self.__dict__)
@@ -129,6 +168,7 @@ class SdpParser(object):
         elif type_ == 'i':  # Session Description
             self.session.session_desc = value
         elif type_ == 't':  # Time
+            self.session.t = value
             self.session.start_time, self.session.stop_time = [int(t) for t in value.split(' ')]
         elif type_ == "e":  # Email
             self.session.emil = value
@@ -151,12 +191,13 @@ class SdpParser(object):
             logger.warning('Unknown SDP Type: %s Value %s', type_, value)
             self._last_desc.other_info[type_] = value
 
-    # todo 构建 sdp 字符串
     def build_self(self):
-        pass
-
-    def build_new(self, session_desc, media_desc=None):
-        pass
+        """
+        还原为原始字符串
+        :return: sdp str
+        """
+        result = build_new(self.session, self.media)
+        return result
 
     def save_as_json(self, filename):
         """ save """
@@ -172,5 +213,13 @@ class SdpParser(object):
                 obj = json.loads(f.read())
                 self.session = obj['session']
                 self.media = obj['media']
-        except:
+        except SystemError:
             logger.error("Load sdp from file fail! - [%s]", filename)
+
+
+def build_new(session_desc: SdpSessionDesc, media_desc=None):
+    result = session_desc.to_str()
+    if isinstance(media_desc, list):
+        for media in media_desc:
+            result += '\r\n' + media.to_str()
+    return result

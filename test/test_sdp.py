@@ -20,11 +20,16 @@ a=Media_header:MEDIAINFO=494D4B4801020000040000010000000000000000000000000000000
 a=appversion:1.0 
 """
 
-p = SdpParser(a)
+p = SdpParser()
+session, media = p.parse(a)
 print(p.session)
 print(p.session.session_desc)
 print(p.media[0])
-p.parse(a)
+
+print(session.to_str())
+print(media[0].to_str())
 p.save_as_json('aa.json')
 
 p.loadJson('aa.json')
+
+print(p.build_self())
