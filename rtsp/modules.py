@@ -1,5 +1,6 @@
 import io
 from http.client import HTTPMessage
+from urllib.parse import urlparse
 import http
 
 import email
@@ -38,12 +39,6 @@ def parse_headers(fp, _class=HTTPMessage):
             break
     hstring = ''.join(headers)
     return email.parser.Parser(_class=_class).parsestr(hstring)
-
-
-# todo fake sock makefile
-class RTSPRequest(object):
-    def __init__(self, string_io, debuglevel=0):
-        self.fp = string_io
 
 
 class RTSPResponse(io.BufferedIOBase):
@@ -440,6 +435,8 @@ class RTSPRequest(object):
         self.method = _UNKNOWN
         self.version = _UNKNOWN  # RTSP-Version
         self.url = _UNKNOWN
+        self.path = _UNKNOWN
+        self.begin()
 
     def __repr__(self):
         return '<Resuest [%s]>' % self.url
@@ -472,11 +469,18 @@ class RTSPRequest(object):
 
     def begin(self):
         if self.headers is not None:
-            return
+            return self
 
         method, version, url = self._read_first_line()
         self.method = method
         self.url = url
+
+        u = urlparse(url)
+        self.path = u.path
+        # todo xxx
+        # self.params = u.params
+        # self.query = u.query
+
         if version.startswith("RTSP/2."):
             self.version = 2
         elif version.startswith("RTSP/1."):

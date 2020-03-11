@@ -24,8 +24,8 @@ from io import StringIO
 from urllib.parse import urlparse
 
 from auth import digest
-from module import RTSPException
-from module import RTSPResponse
+from modules import RTSPException
+from modules import RTSPResponse
 from sdpp import SdpParser
 
 ##########################################################
