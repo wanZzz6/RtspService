@@ -21,7 +21,7 @@ import re
 import socket
 from enum import Enum
 from io import StringIO
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 from auth import digest
 from modules import RTSPException
@@ -40,7 +40,7 @@ DEFAULT_PORT = 554
 
 states = Enum('state', "init ready play")
 requests = Enum('requests', "options describe setup play pause teardown")
-SESSION_PATTERN = r'\s*(?P<session_id>\d+)(.*timeout=)?(?P<timeout>\d+)?'
+SESSION_PATTERN = r'\s*(?P<session_id>\w+)(.*timeout=)?(?P<timeout>\d+)?'
 
 
 ##########################################################
@@ -83,7 +83,8 @@ class Client:
 
     @property
     def media(self):
-        return "{}://{}{}".format(self.server.scheme, self.server.hostname, self.server.path)
+        # endwidth /
+        return "{}://{}{}/".format(self.server.scheme, self.server.hostname, self.server.path)
 
     def __init__(self, server_uri=_cam_uri(), verbose=True):
         self.verbose = verbose
@@ -267,7 +268,8 @@ class Client:
             # 只关注视频流
             if media.type.lower() == 'video':
                 self.media_desc = media
-                self.stream_path = media.attribute['control']
+                if media.attribute['control']:
+                    self.stream_path = urljoin(self.media, media.attribute['control'])
                 break
             else:
                 printrec(b'No play stream')
@@ -341,11 +343,12 @@ def get_resources(client):
 
 
 if __name__ == '__main__':
-    client = Client()
+    client = Client(server_uri='rtsp://10.86.22.16:8554/test')
     client.describe()
     client.options()
-    client.describe()
-    response = client.setup()
-    print(response.headers.items())
-    print(client.session_desc)
-    printrec(client.stream_path)
+    # client.describe()
+    print(client.media)
+    # response = client.setup()
+    # print(response.headers.items())
+    # print(client.session_desc)
+    # printrec(client.stream_path)

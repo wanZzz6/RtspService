@@ -1,4 +1,4 @@
-from rtsp.auth import digest
+from auth import digest
 import unittest
 
 ## Example Traffic
