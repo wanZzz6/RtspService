@@ -5,6 +5,8 @@ import logging
 import logging.config
 import os
 
+IS_INIT = False
+
 
 def genLogDict(logDir, logFile):
     """
@@ -68,6 +70,14 @@ def initLogConf(log_file_name=''):
         log_file_name = datetime.datetime.now().strftime("%Y-%m-%d") + ".log"
     logDict = genLogDict(logDir, log_file_name)
     logging.config.dictConfig(logDict)
+    logging.debug("Init logging config, file : [{}]".format(log_file_name))
+
+
+def getLogger(name):
+    if not IS_INIT:
+        initLogConf()
+
+    return logging.getLogger(name)
 
 
 if __name__ == '__main__':

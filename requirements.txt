@@ -1,3 +1,4 @@
+PyGObject
 aiohttp
 twisted
 django
@@ -6,5 +7,4 @@ cv2
 PIL
 crcmod
 oss2
-av
 bitstring

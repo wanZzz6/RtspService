@@ -343,11 +343,12 @@ def get_resources(client):
 
 
 if __name__ == '__main__':
-    client = Client(server_uri='rtsp://10.86.22.16:8554/test')
+    # client = Client(server_uri='rtsp://10.86.22.16:8554/test')
+    client = Client(server_uri='rtsp://127.0.0.1:8554/test')
     client.describe()
-    client.options()
+    # client.options()
     # client.describe()
-    print(client.media)
+    print(client.media_desc)
     # response = client.setup()
     # print(response.headers.items())
     # print(client.session_desc)
