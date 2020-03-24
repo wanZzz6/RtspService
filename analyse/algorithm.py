@@ -9,23 +9,23 @@ ALGORITHM_DEMO_CIRCLE = 3
 ALGORITHM_DEMO_ELLIPSE = 4
 
 
-def draw_rectangle(frame):
-    cv2.rectangle(frame, (0, 0), (50, 50), (255, 0, 0), 3)  # 长方形
+def draw_line(frame):
+    cv2.line(frame, (0, 0), (50, 50), (0, 255, 0), 5)  # 直线
     return frame
 
 
-def draw_line(frame):
-    cv2.line(frame, (0, 0), (100, 100), (0, 255, 0), 5)  # 直线
+def draw_rectangle(frame):
+    cv2.rectangle(frame, (50, 0), (100, 50), (255, 0, 0), 3)  # 长方形
     return frame
 
 
 def draw_circle(frame):
-    cv2.rectangle(frame, (0, 0), (50, 50), (0, 0, 255), 3)  # 矩形
+    cv2.circle(frame, (125, 25), 25, (0, 0, 255), 3)  # 矩形
     return frame
 
 
 def draw_ellipse(frame):
-    cv2.ellipse(frame, (100, 100), (100, 50), 0, 0, 360, (255, 255, 0), 4)  # 椭圆
+    cv2.ellipse(frame, (200, 25), (50, 25), 0, 0, 360, (255, 255, 0), 4)  # 椭圆
     return frame
 
 

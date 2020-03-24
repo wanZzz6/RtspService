@@ -61,8 +61,6 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
         logger.debug('release capture')
         self.cap.release()
 
-
-
     def on_need_data(self, src, lenght):
         ret, frame = self.cap.read_raw()
         if ret:

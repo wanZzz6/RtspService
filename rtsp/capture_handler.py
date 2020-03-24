@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import logging
 import traceback
-
+from logging_config import getLogger
 import cv2
 
 from utils import array2bytes, calc_run_time
 
-logger = logging.getLogger('captureHandler')
+logger = getLogger('captureHandler')
 
 
 class CvCapture(object):

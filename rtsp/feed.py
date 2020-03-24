@@ -3,7 +3,6 @@ import traceback
 import cv2
 import threading
 
-from analyse.algorithm import draw_nothing
 from logging_config import getLogger
 
 logger = getLogger('Feed')
@@ -22,6 +21,7 @@ class Feed(object):
 
         self.stream_path = stream_source
         self.name = name
+        self._handler = None
         self.handler = algor_handler
         self._is_opened = False
         self._verbose = False
@@ -51,13 +51,14 @@ class Feed(object):
 
     @handler.setter
     def handler(self, value):
-        if value is None:
-            value = draw_nothing
-        if callable(value):
-            self._handler = value
-            logger.debug("[name: {}] - set a handler - {}".format(self.name, value.__name__))
-        else:
-            raise TypeError("[name: {}] - Invalid frame handler, need a function object".format(self.name))
+        if self.handler != value:
+            if value is None:
+                value = draw_nothing
+            if callable(value):
+                self._handler = value
+                logger.debug("[name: {}] - Set a handler - {}".format(self.name, value.__name__))
+            else:
+                raise TypeError("[name: {}] - Invalid frame handler, need a function object".format(self.name))
 
     def open(self):
         """open the communication"""
@@ -65,6 +66,9 @@ class Feed(object):
             ret = self._do_open()
             if ret:
                 self._is_opened = True
+                logger.debug("[name: {}] - Initialize Succeed.".format(self.name))
+            else:
+                logger.debug("[name: {}] - Initialize Failed.".format(self.name))
 
     def close(self):
         """close the communication with the slave"""
@@ -72,14 +76,14 @@ class Feed(object):
             ret = self._do_close()
             if ret:
                 self._is_opened = False
+                logger.debug("[name: {}] Closed Succeed.".format(self.name))
+            else:
+                logger.debug("[name: {}] Closed Failed.".format(self.name))
 
     def _do_open(self):
         raise NotImplementedError()
 
     def _do_close(self):
-        raise NotImplementedError()
-
-    def make_null_data(self):
         raise NotImplementedError()
 
     def detect_h_w_fps(self) -> (int, int, int):
@@ -99,7 +103,13 @@ class Feed(object):
         """
         raise NotImplementedError()
 
-    def feed_processed_data(self):
+    def make_null_data(self):
+        raise NotImplementedError()
+
+    def feed(self):
+        """
+        :return: after processed frame
+        """
         ret, data = self.read_raw()
         if ret:
             try:
@@ -107,7 +117,7 @@ class Feed(object):
                 return data
             except:
                 logger.error(traceback.format_exc())
-        logger.error("[name: {}] Generate a fake data".format(self.name))
+        logger.error("[name: {}] - Generate a fake data".format(self.name))
         return self.make_null_data()
 
     # def read_latest(self):
@@ -147,11 +157,7 @@ class OpenCvFeed(Feed):
 
                 self.read_raw = self._read_latest_frame if self._reading else cap.read
 
-                logger.debug("[name: {}] - Initialize Succeed.".format(self.name))
                 return True
-                # self._width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                # self._height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                # self._fps = int(cap.get(cv2.CAP_PROP_FPS))
             else:
                 raise Exception("Fail to initialized OpenCV Capture !")
         except:
@@ -161,7 +167,6 @@ class OpenCvFeed(Feed):
         # stop sub thread and release capture.
         self._stop_read_latest()
         self.stream.release()
-        logger.debug("[name: {}] Closed : - {}".format(self.name, self.stream_path))
         return True
 
     def _start_read_latest(self):
@@ -212,9 +217,12 @@ class OpenCvFeed(Feed):
                 frame = self._handler(frame)
             h, w = frame.shape[:2]
         else:
+            # h = int(self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            # w = int(self.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
+            # fps = int(cap.get(cv2.CAP_PROP_FPS))
             logger.error("Fail to detect frame params.")
 
-        logger.debug('[name: {}] Frame size - [width]: {}, [height]: {}, [Fps]: {}'.format(self.name, h, w, fps))
+        logger.debug('[name: {}] - Frame size - [width]: {}, [height]: {}, [Fps]: {}'.format(self.name, h, w, fps))
         return h, w, fps
 
     # todo
@@ -227,18 +235,27 @@ class OpenCvFeed(Feed):
 
 if __name__ == '__main__':
     import time
-    from analyse.algorithm import draw_circle, draw_ellipse, draw_line
+    from analyse.algorithm import draw_circle, draw_ellipse, draw_line, draw_rectangle, draw_nothing
 
     url = 'rtsp://admin:admin777@10.86.77.14:554/h264/ch1/sub/av_stream'
-    cap = OpenCvFeed(url, name=123, algor_handler=draw_line)
+    cap = OpenCvFeed(url, name=123, algor_handler=draw_nothing)
     cap.open()
 
     _, _, fps = cap.detect_h_w_fps()
     while True:
         time.sleep(1 / fps)
-        img = cap.feed_processed_data()
+        img = cap.feed()
         cv2.imshow("Image", img)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        kbd = cv2.waitKey(1) & 0xFF
+        if kbd == ord('q'):
             break
+        elif kbd == ord('1'):
+            cap.handler = draw_line
+        elif kbd == ord('2'):
+            cap.handler = draw_rectangle
+        elif kbd == ord('3'):
+            cap.handler = draw_circle
+        elif kbd == ord('4'):
+            cap.handler = draw_ellipse
     cv2.destroyAllWindows()  # 释放窗口资源
     cap.close()
