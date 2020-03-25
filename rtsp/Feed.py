@@ -163,7 +163,6 @@ class Feed(object):
             # interval
             if self.process_flag:
                 self.process_flag = False
-                logger.debug("Process")
                 if self.handler:
                     try:
                         self.marker = self.handler(frame)

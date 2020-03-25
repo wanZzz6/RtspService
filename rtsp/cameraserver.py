@@ -37,19 +37,6 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
                              '! rtph264pay config-interval=1 name=pay0 pt=96'.format(self._width, self._height,
                                                                                      self._fps, self._format)
 
-        self.pipeline = Gst.parse_launch(self.launch_string)
-        self.appsrc = self.pipeline.get_child_by_name('source')
-        # todo xxx
-        self.appsrc.get_property('caps').fixate()
-        # self.appsrc.set_property('format', Gst.Format.TIME)
-        self.bus = self.appsrc.get_bus()
-        self.appsrc.connect('need-data', self.on_need_data)
-        self.bus.connect('message::error', self.on_error)
-        self.bus.connect('message::state-changed', self.on_status_changed)
-        self.bus.connect('message::eos', self.on_eos)
-
-        self._pass_count = 0
-
     def __del__(self):
         logger.debug('release capture')
         self.feed_.release()
@@ -81,12 +68,16 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
         logger.error('error message -> {}'.format(message.parse_error().debug))
 
     def do_create_element(self, url):
-        return self.pipeline
+        return Gst.parse_launch(self.launch_string)
 
-    # def do_configure(self, rtsp_media):
-    #     self.number_frames = 0
-    #     appsrc = rtsp_media.get_element().get_child_by_name('source')
-    #     appsrc.connect('need-data', self.on_need_data)
+    def do_configure(self, rtsp_media):
+        self.number_frames = 0
+        appsrc = rtsp_media.get_element().get_child_by_name('source')
+        bus = appsrc.get_bus()
+        appsrc.connect('need-data', self.on_need_data)
+        bus.connect('message::error', self.on_error)
+        bus.connect('message::state-changed', self.on_status_changed)
+        bus.connect('message::eos', self.on_eos)
 
 
 class GstServer(GstRtspServer.RTSPServer):
@@ -109,10 +100,10 @@ Gst.init(None)
 if __name__ == '__main__':
     from analyse.algorithm import draw_rectangle
 
-    url = 'rtsp://admin:admin777@10.86.77.12:554/h264/ch1/sub/av_stream'
-    # url = 'rtmp://58.200.131.2:1935/livetv/hunantv'
-    feed = Feed.OpenCvFeed(url, name='test')
+    # url = 'rtsp://admin:admin777@10.86.77.12:554/h264/ch1/sub/av_stream'
+    url = 'rtmp://58.200.131.2:1935/livetv/hunantv'
+    feed = Feed.OpenCvFeed(url, name='test', algor_handler=draw_rectangle)
 
-    server = GstServer(feed, '/test')
+    server = GstServer(feed, '/test',)
     loop = GObject.MainLoop()
     loop.run()
