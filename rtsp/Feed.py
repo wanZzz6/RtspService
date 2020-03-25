@@ -1,15 +1,28 @@
 import traceback
-
+import time
 import cv2
+import numpy as np
+import imutils
 import threading
 
 from logging_config import getLogger
+from config import FRAME_OUTPUT_WIDTH, FRAME_OUTPUT_HEIGHT, OUTPUT_FPS
+from utils import draw_frame
+from analyse.algorithm import draw_nothing
 
 logger = getLogger('Feed')
-DEFAULT_WIDTH = 800
-DEFAULT_HEIGHT = 450
-DEFAULT_FPS = 20
+
 SCHEMES = {"rtsp", "rtmp"}  # 用于识别实时流
+_UNKNOWN = "UNKNOWN"
+
+
+def make_null_data(height, width, dimensions=3):
+    try:
+        # 浪淘沙
+        frame = np.random.randint(0, 255, (height, width, dimensions), np.uint8)
+        return frame
+    except TypeError as e:
+        logger.error("Error to generate a null frame, Please set correct frame size.\n%s", e)
 
 
 class Feed(object):
@@ -27,6 +40,13 @@ class Feed(object):
         self._verbose = False
         self.stream = None
 
+        self._process_interval_frame = 25  # every x frame to process a frame use algor_handler.
+        self.process_flag = True  #
+        self.width, self.height, self.fps = _UNKNOWN, _UNKNOWN, _UNKNOWN
+        # todo 已知bug，直连camera算法处理计数错误。
+        self.frame_counter = 0
+        self.marker = []  # draw frame rectangle，circle e.g.
+
     def __del__(self):
         """Release resource."""
         self.close()
@@ -34,6 +54,12 @@ class Feed(object):
     def set_verbose(self, verbose: bool):
         """print some more log prints for debug purpose"""
         self._verbose = verbose
+
+    def set_interval_frame(self, frame: int):
+        if 0 < frame < 100:
+            self._process_interval_frame = frame
+        else:
+            logger.warning("Can't set frame internal: {}".format(frame))
 
     @property
     def name(self):
@@ -55,6 +81,7 @@ class Feed(object):
             if value is None:
                 value = draw_nothing
             if callable(value):
+                # todo maybe size changed.
                 self._handler = value
                 logger.debug("[name: {}] - Set a handler - {}".format(self.name, value.__name__))
             else:
@@ -76,9 +103,9 @@ class Feed(object):
             ret = self._do_close()
             if ret:
                 self._is_opened = False
-                logger.debug("[name: {}] Closed Succeed.".format(self.name))
+                logger.debug("[name: {}] Close Succeed.".format(self.name))
             else:
-                logger.debug("[name: {}] Closed Failed.".format(self.name))
+                logger.debug("[name: {}] Close Failed.".format(self.name))
 
     def _do_open(self):
         raise NotImplementedError()
@@ -86,13 +113,34 @@ class Feed(object):
     def _do_close(self):
         raise NotImplementedError()
 
-    def detect_h_w_fps(self) -> (int, int, int):
-        logger.warning("[name: {}] - Use default height, width and fps.".format(self.name))
-        return self.get_default_h_w_fps()
+    def detect_h_w_fps(self) -> None:
+        # logger.warning("[name: {}] - Use default height, width and fps.".format(self.name))
+        # return self.get_default_h_w_fps()
+        raise NotImplementedError()
+
+    def set_h_w_fps(self, height: int = None, width: int = None, fps_: int = None):
+        if isinstance(height, int):
+            self.height = height
+        if isinstance(width, int):
+            self.width = width
+        if isinstance(fps_, int):
+            if fps_ < 0 or fps_ > 35:
+                logger.warning("Unsupported FPS : [{}/s], had changed to {}/s".format(fps_, OUTPUT_FPS))
+                fps_ = OUTPUT_FPS
+            self.fps = fps_
+
+        logger.debug(
+            '[name: {}] - Set frame size to - [width: {}], [height: {}], [Fps: {}]'.format(self.name, self.height,
+                                                                                           self.width, self.fps))
+
+    def get_h_w_fps(self) -> (int, int, int):
+        if not self._is_opened:
+            self.open()
+        return self.height, self.width, self.fps
 
     @staticmethod
     def get_default_h_w_fps() -> (int, int, int):
-        return DEFAULT_HEIGHT, DEFAULT_WIDTH, DEFAULT_FPS
+        return FRAME_OUTPUT_HEIGHT, FRAME_OUTPUT_WIDTH, OUTPUT_FPS
 
     def isOpened(self) -> bool:
         return self._is_opened
@@ -104,21 +152,30 @@ class Feed(object):
         raise NotImplementedError()
 
     def make_null_data(self):
-        raise NotImplementedError()
+        return make_null_data(self.height, self.width)
 
-    def feed(self):
+    def feed(self) -> np.ndarray:
         """
         :return: after processed frame
         """
-        ret, data = self.read_raw()
+        ret, frame = self.read_raw()
         if ret:
-            try:
-                data = self.handler(data)
-                return data
-            except:
-                logger.error(traceback.format_exc())
+            # interval
+            if self.process_flag:
+                self.process_flag = False
+                logger.debug("Process")
+                if self.handler:
+                    try:
+                        self.marker = self.handler(frame)
+                    except:
+                        logger.error(traceback.format_exc())
+
+            # if no process or hadler occurred error:
+            frame = draw_frame(frame, self.marker)
+            frame = imutils.resize(frame, width=self.width, height=self.height)
+            return frame
         logger.error("[name: {}] - Generate a fake data".format(self.name))
-        return self.make_null_data()
+        return make_null_data(self.height, self.width)
 
     # def read_latest(self):
     #     raise NotImplementedError()
@@ -156,7 +213,8 @@ class OpenCvFeed(Feed):
                     time.sleep(0.1)
 
                 self.read_raw = self._read_latest_frame if self._reading else cap.read
-
+                # initialize frame params
+                self.detect_h_w_fps()
                 return True
             else:
                 raise Exception("Fail to initialized OpenCV Capture !")
@@ -182,11 +240,19 @@ class OpenCvFeed(Feed):
 
     def __recv_frame(self):
         """Keep reading latest frame."""
+        error_count = 0
         while self._reading and self._is_opened:
+            self.frame_counter += 1
+            if self.frame_counter % self._process_interval_frame == 0:
+                self.process_flag = True
+
             ok, frame = self.stream.read()
             if not ok:
                 logger.error('[name: {}] - Opencv Capture Read Frame fail!'.format(self.name))
-                break
+                error_count += 1
+                if error_count > 50:
+                    break
+            # Maybe set a `None` value
             self._latest_frame = frame
         self._reading = False
 
@@ -197,37 +263,26 @@ class OpenCvFeed(Feed):
         # self._latest_frame = None
         return frame is not None, frame
 
-    # todo 重试次数
-    def detect_h_w_fps(self) -> (int, int, int):
+    # todo 重试次数，
+    def detect_h_w_fps(self) -> None:
         """
-        detect picture's width, height and fps.
-        :return: (height, width, fps)
+        detect picture's width, height and fps. when change handler, auto call.
         """
-        h, w = DEFAULT_HEIGHT, DEFAULT_WIDTH
+        if not self._is_opened:
+            self.open()
+        h, w = None, None
 
         fps = int(self.stream.get(cv2.CAP_PROP_FPS))
-        if fps < 0 or fps > 35:
-            logger.warning("Unsupported FPS : [{}/s], had changed to {}/s".format(fps, DEFAULT_FPS))
-            fps = DEFAULT_FPS
-
         ret, frame = self.read_raw()
         if ret:
-            if self._handler is not None:
-                # after processed size
-                frame = self._handler(frame)
+            # todo handler process??
+            # resize
+            frame = imutils.resize(frame, width=FRAME_OUTPUT_WIDTH, height=FRAME_OUTPUT_HEIGHT)
             h, w = frame.shape[:2]
         else:
-            # h = int(self.stream.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            # w = int(self.stream.get(cv2.CAP_PROP_FRAME_WIDTH))
-            # fps = int(cap.get(cv2.CAP_PROP_FPS))
-            logger.error("Fail to detect frame params.")
+            logger.error("Fail to detect frame params, please retry.")
 
-        logger.debug('[name: {}] - Frame size - [width]: {}, [height]: {}, [Fps]: {}'.format(self.name, h, w, fps))
-        return h, w, fps
-
-    # todo
-    def make_null_data(self):
-        return b'null'
+        self.set_h_w_fps(h, w, fps)
 
     def read_raw(self):
         pass
@@ -237,11 +292,12 @@ if __name__ == '__main__':
     import time
     from analyse.algorithm import draw_circle, draw_ellipse, draw_line, draw_rectangle, draw_nothing
 
-    url = 'rtsp://admin:admin777@10.86.77.14:554/h264/ch1/sub/av_stream'
+    url = 'rtsp://admin:admin777@10.86.77.12:554/h264/ch1/sub/av_stream'
     cap = OpenCvFeed(url, name=123, algor_handler=draw_nothing)
     cap.open()
 
-    _, _, fps = cap.detect_h_w_fps()
+    _, _, fps = cap.get_h_w_fps()
+
     while True:
         time.sleep(1 / fps)
         img = cap.feed()

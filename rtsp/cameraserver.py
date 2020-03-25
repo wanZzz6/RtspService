@@ -6,18 +6,13 @@ import cv2
 import gi
 from logging_config import getLogger
 import traceback
-
-logger = getLogger('gi_camera_server')
+import Feed
 
 gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
 from gi.repository import Gst, GstRtspServer, GObject
 
-
-def get_rtsp():
-    return 'rtsp://admin:admin777@10.86.77.12:554/h264/ch1/sub/av_stream'
-    # return 'rtmp://58.200.131.2:1935/livetv/hunantv'
-
+logger = getLogger('gi_camera_server')
 
 DEFAULT_WIDTH = 800
 DEFAULT_HEIGHT = 450
@@ -25,14 +20,12 @@ DEFAULT_FPS = 20
 
 
 class SensorFactory(GstRtspServer.RTSPMediaFactory):
-    def __init__(self, feed, **properties):
+    def __init__(self, feed: Feed.Feed, **properties):
         super(SensorFactory, self).__init__(**properties)
-
-        self._height, self._width, self._fps = feed._detect_h_w_fps()
-        print(self._height, self._width, self._fps)
+        self.feed = feed
+        self._height, self._width, self._fps = feed.get_h_w_fps()
 
         self._format = 'I420'
-        self.detect_inteval = 1.5  # 算法执行间隔， 秒
         self.number_frames = 0
         self.duration = 1 / self._fps * Gst.SECOND  # duration of a frame in nanoseconds
         # self.duration = 1 / self._fps * 1000
@@ -59,25 +52,23 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
 
     def __del__(self):
         logger.debug('release capture')
-        self.cap.release()
+        self.feed_.release()
 
     def on_need_data(self, src, lenght):
-        ret, frame = self.cap.read_raw()
-        if ret:
-            data = frame.tostring()
-            buf = Gst.Buffer.new_allocate(None, len(data), None)
-            buf.fill(0, data)
-            buf.duration = self.duration
-            timestamp = self.number_frames * self.duration
-            buf.pts = buf.dts = int(timestamp)
-            buf.offset = timestamp
-            self.number_frames += 1
-            retval = src.emit('push-buffer', buf)
-            logger.debug('pushed buffer, frame {}, duration {} ns, durations {} s'.format(self.number_frames,
-                                                                                          self.duration,
-                                                                                          self.duration / Gst.SECOND))
-            if retval != Gst.FlowReturn.OK:
-                logger.debug(retval)
+        data = self.feed.feed().tostring()
+        buf = Gst.Buffer.new_allocate(None, len(data), None)
+        buf.fill(0, data)
+        buf.duration = self.duration
+        timestamp = self.number_frames * self.duration
+        buf.pts = buf.dts = int(timestamp)
+        buf.offset = timestamp
+        self.number_frames += 1
+        retval = src.emit('push-buffer', buf)
+        logger.debug('pushed buffer, frame {}, duration {} ns, durations {} s'.format(self.number_frames,
+                                                                                      self.duration,
+                                                                                      self.duration / Gst.SECOND))
+        if retval != Gst.FlowReturn.OK:
+            logger.debug(retval)
 
     def on_status_changed(self, bus, message):
         msg = message.parse_state_changed()
@@ -99,18 +90,29 @@ class SensorFactory(GstRtspServer.RTSPMediaFactory):
 
 
 class GstServer(GstRtspServer.RTSPServer):
-    def __init__(self, stream_source, **properties):
+    def __init__(self, feed, access_path, **properties):
+        """
+        :param feed:  Feed
+        :param access_path: like: "/test"
+        :param properties:
+        """
         super(GstServer, self).__init__(**properties)
-        self.factory = SensorFactory()
+        self.factory = SensorFactory(feed)
         self.factory.set_shared(True)
-        self.get_mount_points().add_factory("/test", self.factory)
+        self.get_mount_points().add_factory(access_path, self.factory)
         self.attach(None)
 
 
 GObject.threads_init()
 Gst.init(None)
 
-server = GstServer(0)
+if __name__ == '__main__':
+    from analyse.algorithm import draw_rectangle
 
-loop = GObject.MainLoop()
-loop.run()
+    url = 'rtsp://admin:admin777@10.86.77.12:554/h264/ch1/sub/av_stream'
+    # url = 'rtmp://58.200.131.2:1935/livetv/hunantv'
+    feed = Feed.OpenCvFeed(url, name='test')
+
+    server = GstServer(feed, '/test')
+    loop = GObject.MainLoop()
+    loop.run()
