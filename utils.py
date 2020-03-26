@@ -1,5 +1,6 @@
 import logging
 import time
+import traceback
 import uuid
 
 import cv2
@@ -46,3 +47,32 @@ def calc_run_time(func):
         return f
 
     return call_fun
+
+
+#
+# def resize_frame(height=FRAME_OUTPUT_HEIGHT, width=FRAME_OUTPUT_WIDTH):
+#     def decorator(func):
+#         def wrapper(frame):
+#             frame = imutils.resize(frame, width=width, height=height)
+#             return func(frame)
+#
+#         return wrapper
+#
+#     return decorator
+
+
+DRAWER_MAP = {
+    "rectangle": cv2.rectangle,
+    "line": cv2.line,
+    "circle": cv2.circle,
+    "ellipse": cv2.ellipse
+}
+
+
+def draw_frame(frame, marker):
+    try:
+        for item in marker:
+            DRAWER_MAP[item['method']](frame, *item['param'])
+        return frame
+    except:
+        logger.error("Draw marker failed %s", traceback.format_exc())

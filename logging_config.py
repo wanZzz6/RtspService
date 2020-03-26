@@ -62,6 +62,7 @@ def initLogConf(log_file_name=''):
     """
     配置日志
     """
+    global IS_INIT
     baseDir = os.path.dirname(os.path.abspath(__file__))
     logDir = os.path.join(baseDir, "./logs")
     if not os.path.exists(logDir):
@@ -71,6 +72,7 @@ def initLogConf(log_file_name=''):
     logDict = genLogDict(logDir, log_file_name)
     logging.config.dictConfig(logDict)
     logging.debug("Init logging config, file : [{}]".format(log_file_name))
+    IS_INIT = True
 
 
 def getLogger(name):
