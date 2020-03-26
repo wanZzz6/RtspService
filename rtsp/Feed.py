@@ -181,7 +181,7 @@ class Feed(object):
 
 
 class OpenCvFeed(Feed):
-    def __init__(self, stream_source, name=None, algor_handler=None):
+    def __init__(self, stream_source, name, algor_handler=None):
         super().__init__(stream_source, name, algor_handler)
         self._latest_frame = None
         self._reading = False
