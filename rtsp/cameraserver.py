@@ -23,20 +23,24 @@ class MediaFactory(GstRtspServer.RTSPMediaFactory):
     def __init__(self, feed: Feed.Feed, **properties):
         super(MediaFactory, self).__init__(**properties)
         self.feed = feed
+        # name as appsrc name
+        self.name = feed.name
+        # access url like : `/test`
+        self.access_path = '/' + self.name.strip('/')
         self._height, self._width, self._fps = feed.get_h_w_fps()
 
-        self._format = 'I420'
         self.number_frames = 0
         self.duration = 1 / self._fps * Gst.SECOND  # duration of a frame in nanoseconds
         # self.duration = 1 / self._fps * 1000
 
+        # attention: must be pay0
         self.launch_string = 'appsrc name={} is-live=true block=true format=GST_FORMAT_TIME ' \
-                             'caps=video/x-raw,format=BGR,width={},height={},framerate={}/1 ' \
-                             '! videoconvert ! video/x-raw,format={} ' \
+                             'caps=video/x-raw,format={},width={},height={},framerate={}/1 ' \
+                             '! videoconvert ! video/x-raw,format=I420 ' \
                              '! x264enc speed-preset=ultrafast tune=zerolatency ' \
-                             '! rtph264pay config-interval=1 name=pay0 pt=96'.format(self.feed.name, self._width,
-                                                                                     self._height,
-                                                                                     self._fps, self._format)
+                             '! rtph264pay config-interval=1 name=pay0 pt=96'.format(self.name, self.feed.media_format,
+                                                                                     self._width, self._height,
+                                                                                     self._fps, )
 
     def __del__(self):
         logger.debug('release capture')
@@ -92,33 +96,48 @@ class MediaFactory(GstRtspServer.RTSPMediaFactory):
 
 
 class GstServer(GstRtspServer.RTSPServer):
-    def __init__(self, feed, access_path, port=8554, **properties):
+    def __init__(self, feeds: list, port=8554, **properties):
         """
-        :param feed:  Feed
-        :param access_path: like: "/test"
+        A rtsp server to support multi channels.
+        :param feeds:  a lot of Feed instance.
+        :param port: server listen port.
         :param properties:
         """
         super(GstServer, self).__init__(**properties)
         self.set_service(str(port))
         self.connect("client-connected", self.on_client_connected)
-
-        self.factory = MediaFactory(feed)
-        self.factory.set_shared(True)
         mounts = self.get_mount_points()
-        mounts.add_factory(access_path, self.factory)
+        for feed in feeds:
+            factory = MediaFactory(feed)
+            factory.set_shared(True)
+            mounts.add_factory(factory.access_path, factory)
+            logger.debug("Play at rtsp://127.0.0.1:{}{}".format(port, factory.access_path))
         self.attach(None)
 
     def on_client_connected(self, server, client):
         logger.debug("client %s connected" % (client.get_connection().get_ip()))
 
 
+def create_multi_feed(stream_source_list, feed_type=Feed.OpenCvFeed, name_pattern='test%d'):
+    count = len(stream_source_list)
+    result = {}
+    for i in range(count):
+        name = name_pattern % (i + 1)
+        feed_ = feed_type(stream_source_list[i], name, None)
+        result[name] = feed_
+    return result
+
+
 if __name__ == '__main__':
     from analyse.algorithm import draw_rectangle
 
-    url = 'rtsp://admin:admin777@10.86.77.12:554/h264/ch1/sub/av_stream'
     # url = 'rtmp://58.200.131.2:1935/livetv/hunantv'
-    feed = Feed.OpenCvFeed(url, name='test', algor_handler=draw_rectangle)
 
-    server = GstServer(feed, '/test', port=8555)
+    stream_source_list = ['rtsp://admin:admin@10.86.77.12:554/h264/ch1/sub/av_stream',
+                          'rtsp://admin:admin@10.86.77.14:554/h264/ch1/sub/av_stream', ]
+
+    feeds_map = create_multi_feed(stream_source_list, name_pattern="camera%d")
+
+    server = GstServer(feeds_map.values(), port=8555)
     loop = GObject.MainLoop()
     loop.run()
