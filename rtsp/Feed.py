@@ -1,3 +1,4 @@
+import random
 import traceback
 import time
 import cv2
@@ -26,9 +27,10 @@ def make_null_data(height, width, dimensions=3):
 
 
 class Feed(object):
-    def __init__(self, stream_source: (str, int), name=None, algor_handler=None):
+    def __init__(self, stream_source: (str, int), name, media_format, algor_handler=None):
         """
         :param stream_source:
+        :param media_format: RGB，BGR
         :param algor_handler: 图像处理函数
         """
 
@@ -39,6 +41,7 @@ class Feed(object):
         self._is_opened = False
         self._verbose = False
         self.stream = None
+        self.media_format = media_format
 
         self._process_interval_frame = 25  # every x frame to process a frame use algor_handler.
         self.process_flag = True  #
@@ -68,7 +71,8 @@ class Feed(object):
     @name.setter
     def name(self, value):
         if value is None:
-            logger.warning("You'd better set a name not None.")
+            value = str(random.randint(1, 1000))
+            logger.warning("You can't set a None name. Generate a random name: {}".format(value))
         self._name = value
 
     @property
@@ -182,7 +186,7 @@ class Feed(object):
 
 class OpenCvFeed(Feed):
     def __init__(self, stream_source, name, algor_handler=None):
-        super().__init__(stream_source, name, algor_handler)
+        super().__init__(stream_source, name, "BGR", algor_handler)
         self._latest_frame = None
         self._reading = False
         self._frame_receiver = None
@@ -216,9 +220,10 @@ class OpenCvFeed(Feed):
                 self.detect_h_w_fps()
                 return True
             else:
-                raise Exception("Fail to initialized OpenCV Capture !")
+                raise Exception("[name: {}] - Fail to initialized OpenCV Capture !".format(self.name))
         except:
             logger.critical('%s', traceback.format_exc())
+            exit(-1)
 
     def _do_close(self) -> bool:
         # stop sub thread and release capture.
