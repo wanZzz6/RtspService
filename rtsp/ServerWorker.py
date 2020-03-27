@@ -6,18 +6,19 @@ from random import randint
 from RtpPacket import RtpPacket
 from VideoStream import VideoStream
 from modules import RTSPRequest
+from sdpp import SdpSessionDesc
 
-import logging_config, logging
+from logging_config import getLogger
 
-logging_config.initLogConf()
-logger = logging.getLogger('ServerWorker')
+logger = getLogger('ServerWorker')
 
 RTSP_VER = "RTSP/1.0"
 
 OK_200 = 200
+Unauthorized = 401
+BAD_REQUEST = 400
 FILE_NOT_FOUND_404 = 404
 CON_ERR_500 = 500
-Unauthorized = 401
 
 REASON = {
     200: "ok",
@@ -38,8 +39,12 @@ class ServerWorker(object):
     clientInfo = {}
 
     def __init__(self, clientInfo):
-        self.clientInfo = clientInfo
         self.state = self.INIT
+        self.stream = None
+        self.clientInfo = clientInfo
+        # todo xxx
+        self.session_desc = SdpSessionDesc()
+        self.session_id = None
 
     def run(self):
         threading.Thread(target=self.recvRtspRequest).start()
@@ -55,6 +60,51 @@ class ServerWorker(object):
                 print("Data received:\n", data)
                 self.processRtspRequest(data)
 
+    # todo 装饰器验证
+    def _verify_setup(self, req_header):
+        """
+        verify SETUP request headers
+        :param req_header:
+        :return:
+        """
+        # todo xxx
+        # Get the RTP/UDP port from the last line
+        transport = req_header.get('transport')
+
+        if transport:
+            trans_type, cast, info = transport.split(';')
+            if trans_type.strip() != 'RTP/AVP/TCP':
+                logger.error('Unsupported stream %s' % trans_type)
+                return BAD_REQUEST
+            # todo xxx
+            # elif trans_type.strip() == 'RTP/AVP/UDP':
+            #     self.clientInfo['rtpPort'] =
+        else:
+            logger.warning('Transport Headers Not Found!')
+            return BAD_REQUEST
+
+        return OK_200
+
+    def _open_stream(self, stream_source):
+        # if self.stream and (self.stream.filename != stream_source):
+        #     # close former
+        #     if not self.stream.closed:
+        #         logger.debug('shutdown {}'.format(self.stream.filename))
+        #         self.stream.close()
+        # logger.debug('Setup a new stream - {}'.format(stream_source))
+        # 准备数据流
+        try:
+            self.stream = VideoStream(stream_source)
+        except:
+            logger.error("setup stream fail - [{}]".format(stream_source))
+            return False
+        else:
+            # Update state
+            self.state = self.READY
+            # Generate a randomized RTSP session ID
+            self.session_id = randint(100000, 999999)
+        return True
+
     def processRtspRequest(self, data):
         """Process RTSP request sent from the client."""
 
@@ -62,51 +112,28 @@ class ServerWorker(object):
         requestType = requ.method
         seq = requ.headers.get('CSeq')
 
-        replay_code = CON_ERR_500
+        replay_code = OK_200
+        info = None
+        body = None
 
-        # Process SETUP request
         # todo 认证
         if requestType == 'SETUP':
-            video_source = requ.path
-            if self.state == self.INIT:
-                # Update state
-                logger.debug("processing SETUP\n")
-                try:
-                    # todo 流输入
-                    self.clientInfo['videoStream'] = VideoStream(video_source)
-                    self.state = self.READY
-                    # Generate a randomized RTSP session ID
-                    self.clientInfo['session'] = randint(100000, 999999)
-                except IOError:
-                    replay_code = FILE_NOT_FOUND_404
+            logger.debug("processing SETUP\n")
+            replay_code = self._verify_setup(requ.headers)
+            # 验证通过
+            if replay_code == OK_200:
+                stream_source = requ.path
+                # 初始建立或者建立新的
+                if self.state == self.INIT:
+                    self._open_stream(stream_source)
+                # Already setup.
+                elif self.state:
+                    # setup a new stream
+                    if self.stream.filename != stream_source:
 
-                # todo xxx
-                # Get the RTP/UDP port from the last line
-                transport = requ.headers.get('transport')
-                if transport:
-                    trans_type, cast, info = transport.split(';')
-                    if trans_type.strip() != 'RTP/AVP/TCP':
-                        logger.error('Unsupported stream %s' % trans_type)
-                        replay_code = CON_ERR_500
-
-                    # todo xxx
-                    # if trans_type.strip() == 'RTP/AVP/UDP':
-                    #     self.clientInfo['rtpPort'] =
-                else:
-                    logger.error('Transport Headers Not Found!')
-                    self.replyRtsp(CON_ERR_500, seq)
-
-                # Send RTSP reply
-                self.replyRtsp(OK_200, seq)
-            else:
-                video_source_f = self.clientInfo.get('videoStream')
-                # setup a new stream
-                if video_source_f != video_source:
-                    logger.debug('shutdown %s' % video_source_f)
-                    self.clientInfo['videoStream'].close()
-                    self.clientInfo['videoStream'] = VideoStream(video_source)
-                    self.clientInfo['session'] = randint(100000, 999999)
-
+                        self.stream = VideoStream(stream_source)
+                    else:
+                        logger.debug('Already setup % - {}'.format(stream_source))
 
         elif requestType == "PLAY":
             if self.state == self.READY:
