@@ -3,9 +3,9 @@
 
 import gi
 
-import Feed
+from . import Feed
 from logging_config import getLogger
-from config import OUTPUT_SUB_CHANNEL_PATTERN, SOURCE_LIST, RTSP_SERVER_PORT
+from .config import OUTPUT_SUB_CHANNEL_PATTERN, SOURCE_LIST, RTSP_SERVER_PORT
 
 gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
