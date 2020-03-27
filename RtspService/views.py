@@ -1,5 +1,6 @@
 import json
-
+import threading
+import time
 from django.http import HttpResponse
 from django.shortcuts import render
 
@@ -45,6 +46,7 @@ def change_ai(request):
     if request.method == 'POST':
         channel = request.POST['channel']
         algori_number = int(request.POST['ai_index'])
+        logger.debug("%s - %s", channel, algori_number)
         feed = FeedMap.get(channel)
         if feed:
             handler = get_algorithm_by_index(algori_number)
@@ -55,5 +57,8 @@ def change_ai(request):
 
 
 def setupServer(request):
-    setup_server()
+    t = threading.Thread(target=setup_server)
+    t.setDaemon(True)
+    t.start()
+    logger.debug(FeedMap)
     return HttpResponse(json.dumps({'msg': 'ok'}), content_type='application/json')

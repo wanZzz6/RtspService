@@ -7,7 +7,7 @@ import imutils
 import threading
 
 from logging_config import getLogger
-from .config import FRAME_OUTPUT_WIDTH, FRAME_OUTPUT_HEIGHT, OUTPUT_FPS
+from rtsp.config import FRAME_OUTPUT_WIDTH, FRAME_OUTPUT_HEIGHT, OUTPUT_FPS
 from utils import draw_frame
 from analyse.algorithm import draw_nothing
 
