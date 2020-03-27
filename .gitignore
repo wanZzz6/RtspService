@@ -4,4 +4,4 @@ __pycache__/
 .idea/
 
 logs/
-/oss/config.py
+oss/config.py

@@ -9,6 +9,7 @@ from oss.config import oss_config
 from rtsp.PushServer import FeedMap
 from rtsp.capture_handler import CvCapture
 from analyse.algorithm import get_algorithm_by_index
+from rtsp.PushServer import setup_server
 
 logger = getLogger('RtspService.views')
 # OSS客户端
@@ -51,3 +52,8 @@ def change_ai(request):
                 feed.handler = handler
                 info['msg'] = 'ok'
     return HttpResponse(json.dumps(info), content_type='application/json')
+
+
+def setupServer(request):
+    setup_server()
+    return HttpResponse(json.dumps({'msg': 'ok'}), content_type='application/json')

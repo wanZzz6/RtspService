@@ -21,5 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home),
     path('api/capture', views.capture_service, name='capture'),
+    path('api/setupServer', views.setupServer),
     path('api/changeAI', views.change_ai, name='changeAI')
 ]
