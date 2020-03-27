@@ -68,4 +68,3 @@ def get_algorithm_by_index(index):
         return alig
     else:
         logger.warning('Algorithm not found by index - [{}]'.format(index))
-        return draw_nothing
