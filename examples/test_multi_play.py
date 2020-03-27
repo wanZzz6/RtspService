@@ -70,11 +70,13 @@ def test_trans2(rtst_url: str, number: int):
 
 
 if __name__ == '__main__':
-    # test_trans1：连续发送测试包，查看丢包率
-    # test_trans2：测试16路播放时动态切换算法，监听按键1-9，切换对应图像检测算法
+    # 开启推流服务
+    url = 'http://10.86.23.194:8000/api/setupServer'
+    requests.get(url)
 
     target_url_pattern = 'rtsp://10.86.23.194:8554/camera%d'
-
+    # test_trans1：连续发送测试包，查看丢包率
+    # test_trans2：测试16路播放时动态切换算法，监听按键1-9，切换对应图像检测算法
     thread_list = []
     for i in range(16):
         t = threading.Thread(target=test_trans2, args=(target_url_pattern % (i + 1), i + 1))
