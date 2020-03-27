@@ -54,7 +54,7 @@ def draw_nothing(frame):
 ALGORITHM_MAP = {
     0: draw_nothing,
     1: draw_rectangle,
-    2: draw_rectangle,
+    2: draw_line,
     3: draw_circle,
     4: draw_ellipse
 }

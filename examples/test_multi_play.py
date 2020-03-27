@@ -56,16 +56,22 @@ def test_trans2(rtst_url: str, number: int):
             break
         cv2.imshow("Image{}".format(number), img)
         kbd = cv2.waitKey(1) & 0xFF
-        if kbd == ord('q'):
-            break
-        elif kbd in ALGORITHM_MAP.keys():
-            change_ai(api_url, p.path.strip('/'), kbd)
+
+        try:
+            if kbd == ord('q'):
+                break
+            elif int(chr(kbd)) in ALGORITHM_MAP.keys():
+                change_ai(api_url, p.path.strip('/'), int(chr(kbd)))
+        except ValueError:
+            pass
 
     cap.release()  # 释放摄像头
     cv2.destroyAllWindows()  # 释放窗口资源
 
 
 if __name__ == '__main__':
+    # test_trans1：连续发送测试包，查看丢包率
+    # test_trans2：测试16路播放时动态切换算法，监听按键1-9，切换对应图像检测算法
 
     target_url_pattern = 'rtsp://10.86.23.194:8554/camera%d'
 
