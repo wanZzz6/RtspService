@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-import logging
+from logging_config import getLogger
 import traceback
 
 import oss2
 from oss2.exceptions import NoSuchKey
 
 from utils import gen_uuid
+import logging
 
-logger = logging.getLogger('MyOssClient')
+logger = getLogger('MyOssClient')
 # logger.setLevel('DEBUG')
-oss2.set_file_logger('log/oss.log', 'oss2', logging.INFO)
+oss2.set_file_logger('logs/oss.log', 'oss2', logging.INFO)
 
 
 # 详细通讯日志
