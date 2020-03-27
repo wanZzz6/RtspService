@@ -1,11 +1,11 @@
 import json
-import logging
+from logging_config import getLogger
 
 """
 Pythonic SDP/SDPPLIN Parser
 """
 
-logger = logging.getLogger('SDP')
+logger = getLogger('SDP')
 
 
 # def _parse_sdpplin_line(item):
@@ -115,7 +115,7 @@ class SdpSessionDesc(object):
 
 class SdpParser(object):
 
-    def __init__(self):
+    def __init__(self, verbose=False):
         """ Parses a full SDP data string.
         Alternatively, send lines to the parseLine method. """
         # 多个媒体描述
@@ -123,10 +123,11 @@ class SdpParser(object):
         # 一个会话描述
         self.session = None  # type SdpSessionDesc
         self._last_desc = None
+        self.verbose = verbose
         # if data is not None:
         #     self.parse(data)
 
-    def parse(self, data: str, verbose=True):
+    def parse(self, data: str):
         """
         解析 sdp 字符串到 python对象
         :param data:sdp 字符串
@@ -145,7 +146,7 @@ class SdpParser(object):
             except Exception as e:
                 logger.error("SDP parse error. %s\n%s" % (line, e))
 
-        if verbose:
+        if self.verbose:
             logger.debug("%s\n%s", self.session, self.media)
         return self.session, self.media
 
