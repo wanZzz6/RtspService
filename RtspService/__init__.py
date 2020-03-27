@@ -1,3 +1,2 @@
-from logging_config import initLogConf
-
-initLogConf()
+from rtsp.PushServer import setup_server
+setup_server()

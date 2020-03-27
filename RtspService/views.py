@@ -1,14 +1,16 @@
 import json
-import logging
 
 from django.http import HttpResponse
 from django.shortcuts import render
 
+from logging_config import getLogger
 from oss.api import OssClient
 from oss.config import oss_config
+from rtsp.PushServer import FeedMap
 from rtsp.capture_handler import CvCapture
+from analyse.algorithm import get_algorithm_by_index
 
-logger = logging.getLogger('RtspService.views')
+logger = getLogger('RtspService.views')
 # OSS客户端
 oss_client = OssClient(oss_config['accessKeyId'], oss_config['accessKeySecret'],
                        oss_config['bucketName'], oss_config['endpoint'], cdn=oss_config['cdn'])
@@ -35,3 +37,17 @@ def capture_service(request):
         result['status'] = 'no'
         result['msg'] = 'see log'
     return HttpResponse(json.dumps(result), content_type='application/json')
+
+
+def change_ai(request):
+    info = {'msg': 'no'}
+    if request.method == 'POST':
+        channel = request.POST['channel']
+        algori_number = int(request.POST['ai_index'])
+        feed = FeedMap.get(channel)
+        if feed:
+            handler = get_algorithm_by_index(algori_number)
+            if handler:
+                feed.handler = handler
+                info['msg'] = 'ok'
+    return HttpResponse(json.dumps(info), content_type='application/json')

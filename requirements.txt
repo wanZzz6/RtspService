@@ -1,3 +1,4 @@
+requests
 imutils
 PyGObject
 aiohttp

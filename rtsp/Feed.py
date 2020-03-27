@@ -89,7 +89,7 @@ class Feed(object):
                 self._handler = value
                 logger.debug("[name: {}] - Set a handler - {}".format(self.name, value.__name__))
             else:
-                raise TypeError("[name: {}] - Invalid frame handler, need a function object".format(self.name))
+                logger.error("[name: {}] - Invalid frame handler, need a function object".format(self.name))
 
     def open(self):
         """open the communication"""
@@ -297,25 +297,25 @@ if __name__ == '__main__':
     from analyse.algorithm import draw_circle, draw_ellipse, draw_line, draw_rectangle, draw_nothing
 
     url = 'rtsp://admin:admin777@10.86.77.12:554/h264/ch1/sub/av_stream'
-    cap = OpenCvFeed(url, name=123, algor_handler=draw_nothing)
-    cap.open()
+    fed = OpenCvFeed(url, name=123, algor_handler=draw_nothing)
+    fed.open()
 
-    _, _, fps = cap.get_h_w_fps()
+    _, _, fps = fed.get_h_w_fps()
 
     while True:
         time.sleep(1 / fps)
-        img = cap.feed()
+        img = fed.feed()
         cv2.imshow("Image", img)
         kbd = cv2.waitKey(1) & 0xFF
         if kbd == ord('q'):
             break
         elif kbd == ord('1'):
-            cap.handler = draw_line
+            fed.handler = draw_line
         elif kbd == ord('2'):
-            cap.handler = draw_rectangle
+            fed.handler = draw_rectangle
         elif kbd == ord('3'):
-            cap.handler = draw_circle
+            fed.handler = draw_circle
         elif kbd == ord('4'):
-            cap.handler = draw_ellipse
+            fed.handler = draw_ellipse
     cv2.destroyAllWindows()  # 释放窗口资源
-    cap.close()
+    fed.close()

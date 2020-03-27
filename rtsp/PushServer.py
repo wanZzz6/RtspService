@@ -5,6 +5,7 @@ import gi
 
 import Feed
 from logging_config import getLogger
+from config import OUTPUT_SUB_CHANNEL_PATTERN, SOURCE_LIST, RTSP_SERVER_PORT
 
 gi.require_version('Gst', '1.0')
 gi.require_version('GstRtspServer', '1.0')
@@ -12,11 +13,9 @@ from gi.repository import Gst, GstRtspServer, GObject
 
 GObject.threads_init()
 Gst.init(None)
-logger = getLogger('gi_camera_server')
+logger = getLogger('PushServer')
 
-DEFAULT_WIDTH = 800
-DEFAULT_HEIGHT = 450
-DEFAULT_FPS = 20
+FeedMap = {}
 
 
 class MediaFactory(GstRtspServer.RTSPMediaFactory):
@@ -43,7 +42,7 @@ class MediaFactory(GstRtspServer.RTSPMediaFactory):
                                                                                      self._fps, )
 
     def __del__(self):
-        logger.debug('release capture')
+        logger.debug('[{}] - Release capture'.format(self.name))
         self.feed.close()
 
     def on_need_data(self, src, lenght):
@@ -118,7 +117,7 @@ class GstServer(GstRtspServer.RTSPServer):
         logger.debug("client %s connected" % (client.get_connection().get_ip()))
 
 
-def create_multi_feed(stream_source_list, feed_type=Feed.OpenCvFeed, name_pattern='test%d'):
+def create_multi_feed(stream_source_list, feed_type=Feed.OpenCvFeed, name_pattern=OUTPUT_SUB_CHANNEL_PATTERN):
     count = len(stream_source_list)
     result = {}
     for i in range(count):
@@ -128,16 +127,15 @@ def create_multi_feed(stream_source_list, feed_type=Feed.OpenCvFeed, name_patter
     return result
 
 
-if __name__ == '__main__':
-    from analyse.algorithm import draw_rectangle
-
-    # url = 'rtmp://58.200.131.2:1935/livetv/hunantv'
-
-    stream_source_list = ['rtsp://admin:admin@10.86.77.12:554/h264/ch1/sub/av_stream',
-                          'rtsp://admin:admin@10.86.77.14:554/h264/ch1/sub/av_stream', ]
-
-    feeds_map = create_multi_feed(stream_source_list, name_pattern="camera%d")
-
-    server = GstServer(feeds_map.values(), port=8555)
+# todo Feed类参数
+def setup_server():
+    global FeedMap
+    FeedMap = create_multi_feed(SOURCE_LIST)
+    server = GstServer(FeedMap.values(), port=RTSP_SERVER_PORT)
     loop = GObject.MainLoop()
     loop.run()
+
+
+if __name__ == '__main__':
+    setup_server()
+    # url = 'rtmp://58.200.131.2:1935/livetv/hunantv'
